@@ -1,0 +1,6 @@
+﻿ConfigureServices 是作为一个容器，是用来把services(各种服务, 例如identity, ef, mvc等等包括第三方的, 或者自己写的)加入(register)到container(asp.net core的容器)中去, 
+                  并配置这些services. 这个container是用来进行dependency injection的(依赖注入). 所有注入的services(此外还包括一些框架已经注册好的services) 
+                  在以后写代码的时候, 都可以将它们注入(inject)进去. 例如上面的Configure方法的参数, app, env, loggerFactory都是注入进去的services.
+
+Configure         方法是asp.net core程序用来具体指定如何处理每个http请求的, 例如我们可以让这个程序知道我使用mvc来处理http请求, 那就调用app.UseMvc()这个方法就行. 
+                  一般都是在这里注册中间件，这里需要注意的是注册中间件时会有顺序问题
