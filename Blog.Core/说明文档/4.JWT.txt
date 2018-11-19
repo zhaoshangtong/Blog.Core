@@ -1,1 +1,83 @@
-﻿
+﻿1.JWt:Json Web Tokens。JWT字符串分为三个部分（以“.”号分隔）header（头部）、payload（载荷）和signature（签名）
+  获取流程：1.客户端向授权服务系统发起请求，申请获取“令牌”。
+           2.授权服务根据用户身份，生成一张专属“令牌”，并将该“令牌”以JWT规范返回给客户端。
+		   3.客户端将获取到的“令牌”放到http请求的headers中后，向主服务系统发起请求。
+		   主服务系统收到请求后会从headers中获取“令牌”，并从“令牌”中解析出该用户的身份权限，然后做出相应的处理（同意或拒绝返回资源）。
+
+
+2.Token服务注册
+            #region Token服务注册
+            services.AddSingleton<IMemoryCache>(factory =>
+             {
+                 var cache = new MemoryCache(new MemoryCacheOptions());
+                 return cache;
+             });
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy("Client", policy => policy.RequireRole("Client").Build());
+                options.AddPolicy("Admin", policy => policy.RequireRole("Admin").Build());
+                options.AddPolicy("AdminOrClient", policy => policy.RequireRole("Admin,Client").Build());
+            });
+            #endregion
+
+			#region Token绑定到ConfigureServices
+                //添加header验证信息
+                //c.OperationFilter<SwaggerHeader>();
+                var security = new Dictionary<string, IEnumerable<string>> { { "Blog.Core", new string[] { } }, };
+                c.AddSecurityRequirement(security);
+                //方案名称“Blog.Core”可自定义，上下一致即可
+                c.AddSecurityDefinition("Blog.Core", new ApiKeyScheme
+                {
+                    Description = "JWT授权(数据将在请求头中进行传输) 直接在下框中输入{token}\"",
+                    Name = "Authorization",//jwt默认的参数名称
+                    In = "header",//jwt默认存放Authorization信息的位置(请求头中)
+                    Type = "apiKey"
+                }); 
+            #endregion
+
+3.JWTHelper帮助类
+        /// <summary>
+        /// 颁发JWT字符串
+        /// </summary>
+        /// <param name="model"></param>
+        /// <returns></returns>
+        public static string IssueJwt(TokenModelJWT model)
+        {
+            var dateTime = DateTime.UtcNow;//过期时间
+            var claims = new Claim[]
+            {
+                new Claim (JwtRegisteredClaimNames.Jti,model.Uid.ToString()),
+                new Claim ("Role",model.Role),
+                new Claim (JwtRegisteredClaimNames.Iat,dateTime.ToString(),ClaimValueTypes.Integer64)
+            };
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var jwt = new JwtSecurityToken(issuer: "Blog.Core", claims: claims, expires: dateTime.AddHours(2), signingCredentials: creds);
+            var jwtHander = new JwtSecurityTokenHandler();
+            var token = jwtHander.WriteToken(jwt);
+            return token;
+        }
+
+4.JwtTokenAuth作为中间件
+        public Task Invoke(HttpContext context)
+        {
+            //检测是否包含'Authorization'请求头
+            if (!context.Request.Headers.ContainsKey("Authorization"))
+            {
+                return _next(context);
+            }
+
+            var token= context.Request.Headers["Authorization"].ToString();
+            TokenModelJWT tm = JwtHelper.SerializeJWT(token);//序列化token，获取授权
+
+            var claims = new List<Claim>();
+            var claim = new Claim(ClaimTypes.Role, tm.Role);
+            claims.Add(claim);
+            var identity = new ClaimsIdentity(claims);
+            var principal = new ClaimsPrincipal(identity);
+            return _next(context);
+        }
+
+
+5.在startup中注册中间件
+        app.UseMiddleware<JwtTokenAuth>();
