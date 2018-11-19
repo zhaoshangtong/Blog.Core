@@ -25,6 +25,11 @@ namespace Blog.Core.AuthHelper.Overwrite
         {
             _next = next;
         }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
         public Task Invoke(HttpContext context)
         {
             //检测是否包含'Authorization'请求头

@@ -10,6 +10,9 @@ using System.Threading.Tasks;
 
 namespace Blog.Core.AuthHelper.Overwrite
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public class JwtHelper
     {
         private static string secretKey= "sdfsdfsrty45634kkhllghtdgdfss345t678fs";
